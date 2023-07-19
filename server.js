@@ -7,10 +7,11 @@ const mongoose = require("mongoose");
 const middleware = require("./middleware")
 const port = 3001 || process.env
 const review = require('./reviewmodel');
+const bcrypt = require("bcrypt")
 
 
 
-mongoose.connect("mongodb+srv://ajayjoji1723:anniejanez0814@cluster0.xs7ouo1.mongodb.net/?retryWrites=true&w=majority")
+mongoose.connect("mongodb+srv://ajayjoji1723:Ajay123@cluster0.xs7ouo1.mongodb.net/devhubs?retryWrites=true&w=majority")
 .then(()=>{
     console.log('DB Connected');
 })
@@ -19,10 +20,12 @@ mongoose.connect("mongodb+srv://ajayjoji1723:anniejanez0814@cluster0.xs7ouo1.mon
 app.use(express.json());
 app.use(cors({origin:'*'}));
 
+//home api
 app.get("/",(req,res)=>{
     res.send("Welcome DevHub!!!")
 })
 
+//get all profiles api
 app.get("/allprofiles", middleware, async(req,res)=>{
     try{
         const allProfiles = await devuser.find()
@@ -33,6 +36,7 @@ app.get("/allprofiles", middleware, async(req,res)=>{
     }
 })
 
+//myprofile api
 app.get("/myprofile", middleware, async(req,res)=>{
     try{
         let user = await devuser.findById(req.user.id);
@@ -43,6 +47,8 @@ app.get("/myprofile", middleware, async(req,res)=>{
     }
 })
 
+
+//add review
 app.post('/addreview', middleware, async(req,res)=>{
     try{
         const {taskworker,rating} = req.body;
@@ -60,6 +66,7 @@ app.post('/addreview', middleware, async(req,res)=>{
     }
 })
 
+//my reviews 
 app.get('/myreview', middleware, async(req,res)=>{
     try{
         let allReviews = await review.find()
@@ -71,6 +78,7 @@ app.get('/myreview', middleware, async(req,res)=>{
     }
 })
 
+//register api
 app.post("/register", async(req,res)=>{
     try{
         const {fullname,email,mobile,skilss,password,confirmPassword} = req.body
@@ -81,8 +89,14 @@ app.post("/register", async(req,res)=>{
         if(password !== confirmPassword){
             return res.send("Password Not Matched")
         }
+        const hashedPassword = await bcrypt.hash(password, 10)
         let newUser = new devuser({
-            fullname,email,mobile,skilss,password,confirmPassword
+            fullname,
+            email,
+            mobile,
+            skilss,
+            password :hashedPassword,
+            confirmPassword
         })
         newUser.save()
         res.send("User Registered")
@@ -92,6 +106,7 @@ app.post("/register", async(req,res)=>{
     }
 })
 
+//login api
 app.post("/login/", async (req,res)=>{
     try{
         const {email, password} = req.body
@@ -99,9 +114,15 @@ app.post("/login/", async (req,res)=>{
         if(!exist){
             return res.status(400).send("User Not Found")
         }
-        if(exist.password !== password){
-            return res.status(400).send("Password Invalid")
+
+         // Compare the provided password with the hashed password in the database
+        const isMatch = await bcrypt.compare(password, exist.password);
+        
+        if(!isMatch){
+            return res.status(401).send("Password Invalid")
         }
+
+        // If the password matches, you can implement JSON Web Token (JWT) authentication here and generate a token for the user.
         let payload = {
             user:{
                 id:exist.id
@@ -119,5 +140,6 @@ app.post("/login/", async (req,res)=>{
         res.status(500).send("Server Error")
     }
 })
+
 
 app.listen(port,()=>console.log(`Server running at ${port}`)) 
